@@ -37,11 +37,10 @@ try:
     driver.get("https://outlook.live.com/mail/inbox")
     time.sleep(15)
 
-    email_lists = driver.find_element(By.CSS_SELECTOR, 'div[data-animatable="true"]')
-    if not email_lists:
-        print(email_lists)
+    latest_email = driver.find_element(By.CSS_SELECTOR, 'div[data-animatable="true"]')[0]
+    if not latest_email:
+        print(latest_email)
     else:
-        latest_email = email_lists[0]
         subject = latest_email.find_element(By.CSS_SELECTOR, "span[title]").text
 
         latest_email.click()
