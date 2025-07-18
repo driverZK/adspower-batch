@@ -43,12 +43,18 @@ try:
     else:
         print(email_list)
         for email in email_list:
-            subject = email.find_element(By.CSS_SELECTOR, "span[title]").text
-
-            email.click()
+            title = email.find_element(By.CSS_SELECTOR, "span[title]")
+            if not title
+                continue
+            subject = title.text
+            title.click()
             time.sleep(5)
 
-            content = driver.find_element(By.CSS_SELECTOR, "div[role='document']").text
+            content_cls = driver.find_element(By.CSS_SELECTOR, "div[role='document']")
+            if not content_cls:
+                content = 'mint test'
+            else:
+                content = content_cls.text
             print(f"Subject: {subject}\nContent: {content}")
             break
 
