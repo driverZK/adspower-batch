@@ -44,7 +44,7 @@ try:
         print(email_list)
         for email in email_list:
             title = email.find_element(By.CSS_SELECTOR, "span[title]")
-            if not title
+            if not title:
                 continue
             subject = title.text
             title.click()
