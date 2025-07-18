@@ -24,7 +24,7 @@ def get_ads_browser(profile_id):
 
 options = Options()
 
-profile_id = "k11smc25"
+profile_id = "k11wlalv"
 debuggerAddress = get_ads_browser(profile_id)
 print(debuggerAddress)
 
@@ -32,7 +32,19 @@ options.add_experimental_option("debuggerAddress", debuggerAddress)  # ไป API ่
 
 driver = webdriver.Chrome(options=options)
 
-driver.get("https://outlook.live.com/mail/inbox")
-time.sleep(15)
+try:
+    driver.get("https://outlook.live.com/mail/inbox")
+    time.sleep(15)
 
-driver.quit()
+    latest_email = driver.find_element_by_css_selector("div[data-animatable='true']")
+    subject = latest_email.find_element_by_css_selector("span[title]").text
+    latest_email.click()
+    time.sleep(5)
+
+    content = driver.find_element_by_css_selector("div[role='document']").text
+    print(f"Subject: {subject}\nContent: {content}")
+
+except Exception as e:
+    print(f"Error: {e}")
+finally:
+    driver.quit()
