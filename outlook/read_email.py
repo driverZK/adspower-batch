@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
 import time
 import requests
 
@@ -36,13 +37,18 @@ try:
     driver.get("https://outlook.live.com/mail/inbox")
     time.sleep(15)
 
-    latest_email = driver.find_element_by_css_selector("div[data-animatable='true']")
-    subject = latest_email.find_element_by_css_selector("span[title]").text
-    latest_email.click()
-    time.sleep(5)
+    email_lists = driver.find_element(By.CSS_SELECTOR, 'div[data-animatable="true"]')
+    if not email_lists:
+        print(email_lists)
+    else:
+        latest_email = email_lists[0]
+        subject = latest_email.find_element(By.CSS_SELECTOR, "span[title]").text
 
-    content = driver.find_element_by_css_selector("div[role='document']").text
-    print(f"Subject: {subject}\nContent: {content}")
+        latest_email.click()
+        time.sleep(5)
+
+        content = driver.find_element(By.CSS_SELECTOR, "div[role='document']").text
+        print(f"Subject: {subject}\nContent: {content}")
 
 except Exception as e:
     print(f"Error: {e}")
