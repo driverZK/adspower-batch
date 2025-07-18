@@ -43,18 +43,19 @@ try:
     else:
         print(email_list)
         for email in email_list:
-            title = email.find_element(By.CSS_SELECTOR, "span[title]")
-            if not title:
+            try:
+                title = email.find_element(By.CSS_SELECTOR, "span[title]")
+            except Exception as e:
                 continue
             subject = title.text
             title.click()
             time.sleep(5)
 
-            content_cls = driver.find_element(By.CSS_SELECTOR, "div[role='document']")
-            if not content_cls:
-                content = 'mint test'
-            else:
+            try:
+                content_cls = driver.find_element(By.CSS_SELECTOR, "div[role='document']")
                 content = content_cls.text
+            except Exception as e:
+                content = 'mint test'
             print(f"Subject: {subject}\nContent: {content}")
             break
 
