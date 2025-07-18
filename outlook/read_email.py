@@ -37,10 +37,11 @@ try:
     driver.get("https://outlook.live.com/mail/inbox")
     time.sleep(15)
 
-    email_list = driver.find_element(By.CSS_SELECTOR, 'div[data-animatable="true"]')
+    email_list = driver.find_elements(By.CSS_SELECTOR, 'div[data-animatable="true"]')
     if not email_list:
         print(email_list)
     else:
+        print(email_list)
         for email in email_list:
             subject = email.find_element(By.CSS_SELECTOR, "span[title]").text
 
