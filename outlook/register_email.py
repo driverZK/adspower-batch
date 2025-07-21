@@ -69,14 +69,14 @@ try:
     
     # 输入邮箱
     email_input = wait.until(EC.presence_of_element_located((By.ID, "floatingLabelInput6")))
-    time.sleep(8)
+    time.sleep(random.uniform(3.9, 6.5))
     email_input.send_keys(username)
 
     print("username:", username)
-    time.sleep(1.2)
     
     # 点击“Next”按钮
     next_button = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    time.sleep(random.uniform(2.9, 5.9))
     next_button.click()
     
     # 输入密码
@@ -84,14 +84,14 @@ try:
     # password_input = wait.until(EC.presence_of_element_located((By.ID, "floatingLabelInput44")))
     # 方案二
     password_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[autocomplete="new-password"]')))
-    time.sleep(6)
+    time.sleep(random.uniform(4.9, 7.5))
     password_input.send_keys(password)
 
     print("password:", password)
-    time.sleep(2.1)
     
     # 点击“Next”按钮
     next_button = driver.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    time.sleep(random.uniform(2.9, 5.5))
     next_button.click()
     
     time.sleep(5)
@@ -124,7 +124,7 @@ try:
 
     # ==================== 选择月份 BirthMonth =======================
     months_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
-    target_month = random.choice(months)
+    target_month = random.choice(months_list)
     try:
         month_button = wait.until(EC.element_to_be_clickable((By.ID, 'BirthMonthDropdown')))
 
@@ -136,7 +136,7 @@ try:
         
         # 尝试 ActionChains 点击
         actions = ActionChains(driver)
-        actions.move_to_element(month_button).pause(random.uniform(0.2, 0.5)).click().perform()
+        actions.move_to_element(month_button).pause(random.uniform(1.2, 2.5)).click().perform()
         logger.info("Clicked BirthMonthDropdown with ActionChains")
         
         # 等待 aria-expanded="true"
@@ -175,7 +175,7 @@ try:
         # 使用 JavaScript 点击日期按钮
         driver.execute_script("arguments[0].click();", day_button)
 
-        time.sleep(0.9)
+        time.sleep(random.uniform(2.8, 5.5))
     
         # 动态获取日期选项列表 ID
         day_listbox_id = "fluent-listbox25"
@@ -225,9 +225,6 @@ try:
     
     # 等待注册完成页面加载
     time.sleep(5)
-
-    # 处理可能的验证码（需根据实际情况添加逻辑，例如手动输入或调用验证码识别服务）
-    print("Please check if CAPTCHA verification is required")
     
     # 模拟真人验证：点击固定按钮并保持直到进度条完成
     try:
