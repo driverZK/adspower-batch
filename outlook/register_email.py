@@ -32,6 +32,7 @@ print(resp)
 chrome_options = Options()
 chrome_options.add_experimental_option("debuggerAddress", resp["data"]["ws"]["selenium"])
 driver = webdriver.Chrome(options=chrome_options)
+driver.maximize_window()
 
 # 生成随机邮箱和密码
 def generate_random_string(length):
@@ -42,7 +43,7 @@ def generate_random_string(length):
 # username = generate_random_string(10) + "yang"
 # password = "B_" + generate_random_string(6) + "123789"
 
-username = "cspower731"
+username = "crazykooper992"
 password = "B_xtroni123789"
 
 try:
@@ -64,10 +65,11 @@ try:
         accept_button.click()
         print("Clicked 'Accept' or 'Accept and Continue' button")
     except Exception as e:
-        print("No consent popup found, proceeding with registration")
+        print("No Pop found, proceeding with registration")
     
     # 输入邮箱
     email_input = wait.until(EC.presence_of_element_located((By.ID, "floatingLabelInput6")))
+    time.sleep(8)
     email_input.send_keys(username)
 
     print("username:", username)
@@ -78,8 +80,11 @@ try:
     next_button.click()
     
     # 输入密码
+    # 方案一
     # password_input = wait.until(EC.presence_of_element_located((By.ID, "floatingLabelInput44")))
+    # 方案二
     password_input = wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'input[autocomplete="new-password"]')))
+    time.sleep(6)
     password_input.send_keys(password)
 
     print("password:", password)
@@ -118,7 +123,8 @@ try:
     logger.info("Switched to default content")
 
     # ==================== 选择月份 BirthMonth =======================
-    target_month = "June"
+    months_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+    target_month = random.choice(months)
     try:
         month_button = wait.until(EC.element_to_be_clickable((By.ID, 'BirthMonthDropdown')))
 
@@ -147,7 +153,7 @@ try:
         # 选择目标月份
         month_option = wait.until(EC.element_to_be_clickable((By.XPATH, f"//div[@id='{month_listbox_id}']//div[@role='option' and contains(text(), '{target_month}')]")))
         driver.execute_script("arguments[0].scrollIntoView({block: 'center', behavior: 'smooth'});", month_option)
-        time.sleep(random.uniform(0.2, 0.5))
+        time.sleep(random.uniform(3.8, 7.5))
         month_option.click()
         logger.info(f"Selected month: {target_month}")
         time.sleep(0.8)
@@ -156,7 +162,7 @@ try:
         raise
     
     # ==================== 选择日期 BirthDay =======================
-    target_day = "16"
+    target_day = str(random.randint(1, 30))
     try:
         day_button = wait.until(EC.element_to_be_clickable((By.ID, 'BirthDayDropdown')))
 
@@ -164,7 +170,7 @@ try:
 
         driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", day_button)
 
-        time.sleep(0.5)  # 等待滚动完成
+        time.sleep(1.5)  # 等待滚动完成
     
         # 使用 JavaScript 点击日期按钮
         driver.execute_script("arguments[0].click();", day_button)
@@ -179,6 +185,7 @@ try:
         day_option = wait.until(
             EC.element_to_be_clickable((By.XPATH, f"//div[@id='{day_listbox_id}']//div[@role='option' and contains(text(), '{target_day}')]"))
         )
+        time.sleep(random.uniform(2.9, 5.5))
         day_option.click()
         time.sleep(1)
     except Exception as e:
@@ -186,8 +193,10 @@ try:
         raise
 
     # 填写年份
+    target_year = str(random.randint(1972, 2005))
     birth_year = driver.find_element(By.CSS_SELECTOR, 'input[name="BirthYear"]')
-    birth_year.send_keys("1992")
+    time.sleep(random.uniform(0.9, 2.5))
+    birth_year.send_keys(target_year)
     time.sleep(3)
     
     # 点击“Next”按钮
@@ -197,13 +206,15 @@ try:
     time.sleep(3.8)
     # 输入姓名（示例：随机生成）
     first_name = wait.until(EC.presence_of_element_located((By.ID, "firstNameInput")))
-    first_name.send_keys(generate_random_string(5))
+    time.sleep(random.uniform(1.5, 3.5))
+    first_name.send_keys(generate_random_string(8))
     
     print("first_name:", first_name)
     time.sleep(2.2)
     
     last_name = driver.find_element(By.ID, "lastNameInput")
-    last_name.send_keys(generate_random_string(7))
+    time.sleep(random.uniform(1.9, 4.5))
+    last_name.send_keys(generate_random_string(6))
 
     print("last_name:", last_name)
     time.sleep(1.3)
@@ -220,32 +231,57 @@ try:
     
     # 模拟真人验证：点击固定按钮并保持直到进度条完成
     try:
-        time.sleep(7)
-        WebDriverWait(driver, 20).until(
-            EC.presence_of_element_located((By.XPATH, "//h1[contains(text(), 'prove')]"))
-        )
+        time.sleep(2)
+        WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.XPATH, "//h1[contains(text(), 'prove')]")))
         logger.info("Human verification page loaded")
 
-        # 切换到外层 humanCaptchaIframe
-        # captcha_iframe = wait.until(EC.presence_of_element_located((By.XPATH, "//iframe[@title='Verification challenge']")))
-        # driver.switch_to.frame(captcha_iframe)
-        # logger.info("Switched to humanCaptchaIframe")
+        # 切换到第一层 iframe
+        captcha_iframe = wait.until(EC.presence_of_element_located((By.XPATH, "//iframe[@title='Verification challenge']")))
+        driver.switch_to.frame(captcha_iframe)
+        logger.info("Switched to first iframe: Verification challenge")
 
-        # 定位 <p> 元素（通过文本 "Press & Hold"）
-        # captcha_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'Press & Hold')]")))
-        captcha_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, 'div[aria-label="Press & Hold Human Challenge"]')))
-        logger.info("Located Press & Hold <p> element")
+        # 等待 px-captcha 容器加载
+        try:
+            wait.until(EC.presence_of_element_located((By.ID, "px-captcha"))) 
+            logger.info("定位到 px-captcha 容器")
+        except Exception as e:
+            logger.error(f"未找到 px-captcha 容器: {str(e)}")
+            raise
+        
+        # 优先尝试 Shadow DOM 内显示的 iframe
+        try:
+            nested_iframe = wait.until(EC.presence_of_element_located(
+                (By.XPATH, "//iframe[@title='Human verification challenge' and contains(@style, 'display: block')]"))
+            )
+            logger.info("定位到 Shadow DOM内的嵌套的第二层 iframe: Human verification challenge")
+            driver.switch_to.frame(nested_iframe)
+            logger.info("Switched to second iframe: Human verification challenge")
 
-        # 模拟按住 4-7 秒
-        actions = ActionChains(driver)
-        actions.move_to_element(captcha_button).pause(random.uniform(0.3, 0.7)).click_and_hold().pause(random.uniform(5, 7)).release().perform()
-        logger.info("Pressed and held CAPTCHA <p> element for 5-7 seconds")
+            captcha_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'Press & Hold')]")))
+        except Exception as e:
+            logger.error(f"未找到 captcha_button: {str(e)}")
+            raise
+
+        if not captcha_button:
+            logger.error(f"未找到 captcha_button: {str(e)}")
+            raise
+        else:
+            # 模拟按住5-8秒
+            actions = ActionChains(driver)
+            actions.move_by_offset(random.randint(10, 50), random.randint(10, 50)).pause(random.uniform(0.3, 0.7))
+            actions.move_to_element(captcha_button).pause(random.uniform(0.5, 1.0))
+            actions.click_and_hold().pause(random.uniform(5, 8)).release().perform()
+            logger.info("Pressed and held CAPTCHA <p> element for 5-7 seconds")
+        
+        # 切换回默认上下文
+        driver.switch_to.default_content()
+        logger.info("已切换回默认上下文")
 
         print("Human verification completed: Button held until progress bar finished")
     except Exception as e:
         print(f"Human verification failed: {str(e)}")
         print("Please check the verification button or progress bar element ID")
-    
+        raise
 
     time.sleep(5)
 
