@@ -245,16 +245,77 @@ try:
             logger.error(f"未找到 px-captcha 容器: {str(e)}")
             raise
         
-        # 优先尝试 Shadow DOM 内显示的 iframe
+        # 尝试触发验证码渲染
         try:
-            nested_iframe = wait.until(EC.presence_of_element_located(
-                (By.XPATH, "//iframe[@title='Human verification challenge' and contains(@style, 'display: block')]"))
-            )
-            logger.info("定位到 Shadow DOM内的嵌套的第二层 iframe: Human verification challenge")
-            driver.switch_to.frame(nested_iframe)
-            logger.info("Switched to second iframe: Human verification challenge")
+            for _ in range(3):
+                driver.execute_script("window.postMessage({type: 'rendered'}, '*')")
+                logger.info("触发验证码渲染事件")
+                time.sleep(1)
+        except Exception as e:
+            logger.warning(f"触发渲染事件失败：{str(e)}")
+        
+        # 定义按钮定位器
+        button_locators = [
+            (By.CSS_SELECTOR, '[aria-label="Press & Hold Human Challenge"]'),
+            (By.XPATH, "//*[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'press & hold')]"),
+            (By.CSS_SELECTOR, '[role="button"][aria-describedby*="QlPptZyiPnySLMX"]'),
+            (By.XPATH, "//*[contains(text(), 'Press & Hold') or contains(text(), 'Hold')]"),
+            (By.CSS_SELECTOR, 'div[class*="FisGzngmzxUYbTI"], p[id="sDDfcQYlNALmIZW"]'),
+            (By.CSS_SELECTOR, '[role="button"]')
+        ]
 
-            captcha_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'Press & Hold')]")))
+        captcha_button = None
+        # 获取 Shadow DOM 内的 iframe 列表
+        try:
+            shadow_host = driver.find_element(By.ID, "px-captcha")
+            iframes = driver.execute_script(
+                """
+                let shadow = arguments[0].shadowRoot;
+                return shadow ? Array.from(shadow.querySelectorAll('iframe[title="Human verification challenge"]')).map(iframe => ({
+                    element: iframe,
+                    style: iframe.getAttribute('style') || '',
+                    token: iframe.getAttribute('token') || ''
+                })) : [];
+                """, shadow_host
+            )
+            logger.info(f"找到 Shadow DOM 内 {len(iframes)} 个 iframe")
+
+            if not iframes:
+                logger.error("Shadow DOM 内未找到任何 iframe")
+                driver.save_screenshot("shadow_iframe_not_found.png")
+            else:
+                # 保存 iframe 内容和属性以供调试
+                with open("shadow_iframe_content.html", "w", encoding="utf-8") as f:
+                    for idx, iframe in enumerate(iframes, 1):
+                        try:
+                            driver.switch_to.frame(iframe['element'])
+                            f.write(f"<!-- Shadow DOM 内 iframe {idx}, style: {iframe['style']}, token: {iframe['token']} -->\n{driver.page_source}\n")
+                            driver.switch_to.parent_frame()
+                        except Exception:
+                            f.write(f"<!-- Shadow DOM 内 iframe {idx} 无法获取 -->\n")
+                logger.info("已保存 Shadow DOM 内 iframe 内容到 shadow_iframe_content.html")
+
+            # 优先尝试 style 包含 display: block 的 iframe
+            for idx, iframe in enumerate(iframes, 1):
+                if 'display: block' in iframe['style']:
+                    try:
+                        driver.switch_to.frame(iframe['element'])
+                        logger.info(f"已切换到 Shadow DOM 内 iframe {idx} (display: block)")
+                        for locator in button_locators:
+                            try:
+                                captcha_button = wait.until(EC.element_to_be_clickable(locator), timeout=15)
+                                logger.info(f"在 Shadow DOM 内 iframe {idx} (display: block) 中使用定位器找到按钮：{locator}")
+                                break
+                            except TimeoutException:
+                                logger.warning(f"在 Shadow DOM 内 iframe {idx} (display: block) 中定位器 {locator} 未找到按钮")
+                        if captcha_button:
+                            break
+                        driver.switch_to.parent_frame()
+                    except Exception as e:
+                        logger.warning(f"切换到 Shadow DOM 内 iframe {idx} (display: block) 失败：{str(e)}")
+                        driver.switch_to.parent_frame()
+
+            # captcha_button = wait.until(EC.element_to_be_clickable((By.XPATH, "//p[contains(text(), 'Press & Hold')]")))
         except Exception as e:
             logger.error(f"未找到 captcha_button: {str(e)}")
             raise
@@ -277,7 +338,6 @@ try:
         print("Human verification completed: Button held until progress bar finished")
     except Exception as e:
         print(f"Human verification failed: {str(e)}")
-        print("Please check the verification button or progress bar element ID")
         raise
 
     time.sleep(5)
