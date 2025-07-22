@@ -292,7 +292,7 @@ try:
         for attempt in range(15):
             try:
                 shadow_host = driver.find_element(By.ID, "px-captcha")
-                iframes = self.driver.execute_script(
+                iframes = driver.execute_script(
                     """
                     let shadow = arguments[0].shadowRoot;
                     if (!shadow) {
