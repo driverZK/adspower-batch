@@ -29,7 +29,6 @@ OUTLOOK_EMAIL = "OlwinMuncher36@outlook.com"  # 替换为你的 Outlook 邮箱
 OUTLOOK_PASSWORD = "p87o6gAU31j"  # 替换为你的 Outlook 密码
 
 def start_adspower_profile():
-    global PROFILE_ID
     """启动 ADS Power 指纹浏览器实例"""
     logger.info("正在启动 ADS Power 指纹浏览器实例")
     url = f"{ADSP_BASE_URL}/api/v2/browser-profile/start"
