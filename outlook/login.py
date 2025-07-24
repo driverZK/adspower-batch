@@ -61,7 +61,6 @@ def stop_adspower_profile():
     url = f"{ADSP_BASE_URL}/api/v2/browser-profile/stop"
     payload = {
         "profile_id": PROFILE_ID
- jargons
     }
     headers = {"Content-Type": "application/json"}
     try:
