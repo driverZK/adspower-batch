@@ -39,11 +39,11 @@ def start_adspower_profile():
     headers = {"Content-Type": "application/json"}
     try:
         response = requests.post(url, json=payload, headers=headers)
-        if response.status_code == 100:
+        if response.status_code == 200:
             data = response.json()
             if data["code"] == 0:
                 selenium_port = data["data"]["ws"]["selenium"]
-                logger.info(f"浏览器实例启动成功，Selenium 端口: {selenium_port}")
+                logger.info(f"浏览器实例启动成功, Selenium 端口: {selenium_port}")
                 return selenium_port
             else:
                 logger.error(f"启动浏览器失败: {data['msg']}")
