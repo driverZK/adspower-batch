@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 # ADS Power API 配置
 ADSP_BASE_URL = "http://local.adspower.net:50325"  # 本地 ADS Power API 地址
-PROFILE_ID = "k11yvbja"  # 替换为你的浏览器指纹配置文件 ID
+PROFILE_ID = "k11yvbja"  # 浏览器指纹配置文件ID
 PROXY_DETECTION = "0"  # 代理检测设置，0 表示关闭，1 表示开启，根据需要修改
 
 # Outlook 登录凭据
@@ -29,6 +29,7 @@ OUTLOOK_EMAIL = "OlwinMuncher36@outlook.com"  # 替换为你的 Outlook 邮箱
 OUTLOOK_PASSWORD = "p87o6gAU31j"  # 替换为你的 Outlook 密码
 
 def start_adspower_profile():
+    global PROFILE_ID
     """启动 ADS Power 指纹浏览器实例"""
     logger.info("正在启动 ADS Power 指纹浏览器实例")
     url = f"{ADSP_BASE_URL}/api/v2/browser-profile/start"
