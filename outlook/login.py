@@ -79,13 +79,13 @@ def stop_adspower_profile():
 def login_outlook():
     """使用 Selenium 登录 Outlook 邮箱"""
     try:
-        # 获取 ADS Power 提供的 Selenium WebSocket 端口
-        selenium_port = start_adspower_profile()
+        # 获取 ADS Power 提供的 Selenium ip:port
+        selenium_endpoint = start_adspower_profile()
 
         # 配置 Selenium WebDriver
         logger.info("正在配置 Selenium WebDriver")
         chrome_options = Options()
-        chrome_options.add_experimental_option("debuggerAddress", f"127.0.0.1:{selenium_port}")
+        chrome_options.add_experimental_option("debuggerAddress", f"{selenium_endpoint}")
         driver = webdriver.Chrome(options=chrome_options)
         driver.maximize_window()
         logger.info("Selenium WebDriver 配置完成")
