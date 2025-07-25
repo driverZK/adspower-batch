@@ -317,11 +317,11 @@ class OutlookEmailFetcher:
                         
                         # 获取邮件内容
                         try:
-                            content_elem = WebDriverWait(driver, 5).until(
-                                EC.presence_of_element_located((By.CSS_SELECTOR, ".x_messageContainer, [role='document']"))
+                            content_elem = WebDriverWait(driver, 8).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='document']"))
                             )
                             email_content = content_elem.text.strip()
-                            logger.debug("提取邮件内容: %s", email_content[:50] + "..." if len(email_content) > 50 else email_content)
+                            logger.debug("提取邮件内容: %s", email_content[:150] + "..." if len(email_content) > 50 else email_content)
                         except TimeoutException:
                             logger.error("无法提取第 %d 封邮件内容", idx + 1)
                             email_content = "No content found"
