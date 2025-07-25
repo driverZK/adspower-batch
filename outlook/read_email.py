@@ -2,6 +2,7 @@
 import psycopg2
 from psycopg2 import Error
 from psycopg2.extras import execute_values
+from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 import os
 import requests
@@ -14,6 +15,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException 
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 
 # 配置日志
 logging.basicConfig(
@@ -362,8 +365,82 @@ class OutlookEmailFetcher:
             requests.post(stop_url, json={"profile_id": ads_browser_id})
             return emails
 
+def process_email_task(email, downloader, connection_pool):
+    """处理单个邮箱账户，读取邮件并存储到数据库"""
+    db_manager = PostgresDBManager(connection_pool=connection_pool)
+    try:
+        logger.info("处理邮箱: %s, AdsPower ID: %s", email['address'], email['ads_browser_id'])
+        emails = downloader.fetch_outlook_emails(email['address'], email['ads_browser_id'])
+        if emails:
+            logger.info("为 %s 读取到 %d 封邮件", email['address'], len(emails))
+            db_manager.insert_email_content(emails)
+        else:
+            logger.warning("为 %s 未读取到邮件", email['address'])
+    except Exception as e:
+        logger.error("处理邮箱 %s 时出错: %s", email['address'], e)
+    finally:
+        db_manager.close_connection()
+
+def main_loop(polling_interval=60, max_workers=5):
+    """主循环，持续监控并并发处理邮件"""
+    logger.info("启动主循环，轮询间隔 %d 秒，最大并发数 %d", polling_interval, max_workers)
+    connection_pool = ThreadedConnectionPool(
+        minconn=1,
+        maxconn=max_workers,
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        host=os.getenv("DB_HOST"),
+        port=os.getenv("DB_PORT"),
+        database=os.getenv("DB_NAME")
+    )
+    db_manager = PostgresDBManager(connection_pool=connection_pool)
+    downloader = OutlookEmailDownloader()
+
+    try:
+        while True:
+            try:
+                # 查询符合条件的邮箱
+                logger.info("查询符合条件的邮箱记录")
+                valid_emails = db_manager.query_valid_emails()
+                if not valid_emails:
+                    logger.info("未找到符合条件的邮箱，等待下次轮询")
+                    time.sleep(polling_interval)
+                    continue
+
+                # 并发处理邮箱
+                logger.info("开始并发处理 %d 个邮箱", len(valid_emails))
+                with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    futures = [
+                        executor.submit(process_email_task, email, downloader, connection_pool)
+                        for email in valid_emails
+                    ]
+                    for future in as_completed(futures):
+                        try:
+                            future.result()
+                        except Exception as e:
+                            logger.error("并发任务出错: %s", e)
+
+                logger.info("完成一批处理，等待 %d 秒", polling_interval)
+                time.sleep(polling_interval)
+
+            except Exception as e:
+                logger.error("主循环迭代出错: %s", e)
+                time.sleep(polling_interval)
+
+    except KeyboardInterrupt:
+        logger.info("收到 KeyboardInterrupt, 程序关闭")
+    except Exception as e:
+        logger.error("主循环致命错误: %s", e)
+    finally:
+        db_manager.close_connection()
+        connection_pool.closeall()
+        logger.info("连接池已关闭，程序终止")
+
 # 示例用法
 if __name__ == "__main__":
+    logger.info("程序启动")
+    main_loop(polling_interval=60, max_workers=5)
+    """
     logger.info("程序启动")
     try:
         # 初始化数据库和邮件获取器
@@ -397,3 +474,4 @@ if __name__ == "__main__":
         logger.info("关闭数据库连接")
         db_manager.close_connection()
         logger.info("程序结束")
+    """
