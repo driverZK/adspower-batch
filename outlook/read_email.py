@@ -327,6 +327,8 @@ def process_email_task(email, downloader, connection_pool):
         if emails:
             logger.info("为 %s 读取到 %d 封邮件", email['address'], len(emails))
             db_manager.insert_email_content(emails)
+            logger.info("更新邮箱 %s 的 is_need_check", email['address'])
+            db_manager.update_is_need_check(email['address'])
         else:
             logger.warning("为 %s 未读取到邮件", email['address'])
     except Exception as e:
