@@ -32,32 +32,40 @@ logger = logging.getLogger(__name__)
 # 加载 .env 文件中的环境变量
 load_dotenv()
 
+
 class PostgresDBManager:
-    def __init__(self):
-        """初始化数据库连接"""
+    def __init__(self, connection_pool=None):
+        """初始化数据库连接或使用连接池"""
         self.connection = None
         self.cursor = None
+        self.connection_pool = connection_pool
         try:
-            self.connection = psycopg2.connect(
-                user=os.getenv("DB_USER"),
-                password=os.getenv("DB_PASSWORD"),
-                host=os.getenv("DB_HOST"),
-                port=os.getenv("DB_PORT"),
-                database=os.getenv("DB_NAME")
-            )
+            if self.connection_pool:
+                self.connection = self.connection_pool.getconn()
+            else:
+                self.connection = psycopg2.connect(
+                    user=os.getenv("DB_USER"),
+                    password=os.getenv("DB_PASSWORD"),
+                    host=os.getenv("DB_HOST"),
+                    port=os.getenv("DB_PORT"),
+                    database=os.getenv("DB_NAME")
+                )
             self.cursor = self.connection.cursor()
-            logger.info("数据库连接成功")
+            logger.debug("数据库连接已建立")
         except (Exception, Error) as error:
             logger.error("连接数据库时出错: %s", error)
             raise
 
     def close_connection(self):
-        """关闭数据库连接"""
+        """关闭数据库连接或归还到连接池"""
         if self.connection:
             if self.cursor:
                 self.cursor.close()
-            self.connection.close()
-            logger.info("数据库连接已关闭")
+            if self.connection_pool:
+                self.connection_pool.putconn(self.connection)
+            else:
+                self.connection.close()
+            logger.debug("数据库连接已关闭或归还到连接池")
 
     def create_email_content_table(self):
         """创建 outlook_email_content 表"""
@@ -108,7 +116,7 @@ class PostgresDBManager:
             raise
 
     def insert_email_content(self, email_data):
-        """向 outlook_email_content 表批量插入邮件数据"""
+        """批量插入邮件数据到 outlook_email_content 表"""
         try:
             insert_query = '''
                 INSERT INTO outlook_email_content (email_address, email_title, email_content)
@@ -117,41 +125,9 @@ class PostgresDBManager:
             values = [(data['email_address'], data['email_title'], data['email_content']) for data in email_data]
             execute_values(self.cursor, insert_query, values)
             self.connection.commit()
-            logger.info("outlook_email_content 表插入 %d 条数据成功", len(values))
+            logger.info("向 outlook_email_content 表插入 %d 条数据成功", len(values))
         except (Exception, Error) as error:
             logger.error("插入 outlook_email_content 数据时出错: %s", error)
-            self.connection.rollback()
-            raise
-
-    def insert_email_list(self, data_list):
-        """向 outlook_email_list 表批量插入数据"""
-        try:
-            insert_query = '''
-                INSERT INTO outlook_email_list (
-                    address, password, source, ads_browser_id, ads_browser_num,
-                    proxy_ip, proxy_country, is_valid, is_login, is_need_check,
-                    need_check_time, stop_time, remark
-                )
-                VALUES %s;
-            '''
-            if not isinstance(data_list, list):
-                data_list = [data_list]
-            values = [
-                (
-                    data.get('address'), data.get('password'), data.get('source'),
-                    data.get('ads_browser_id'), data.get('ads_browser_num'),
-                    data.get('proxy_ip'), data.get('proxy_country'),
-                    data.get('is_valid', True), data.get('is_login', False),
-                    data.get('is_need_check', 0), data.get('need_check_time'),
-                    data.get('stop_time'), data.get('remark')
-                )
-                for data in data_list
-            ]
-            execute_values(self.cursor, insert_query, values)
-            self.connection.commit()
-            logger.info("outlook_email_list 表插入 %d 条数据成功", len(values))
-        except (Exception, Error) as error:
-            logger.error("插入 outlook_email_list 数据时出错: %s", error)
             self.connection.rollback()
             raise
 
@@ -165,11 +141,13 @@ class PostgresDBManager:
             '''
             self.cursor.execute(query)
             rows = self.cursor.fetchall()
-            logger.info("查询到 %d 条符合条件的记录", len(rows))
+            logger.info("查询到 %d 条符合条件的邮箱记录", len(rows))
+            for row in rows:
+                logger.debug("符合条件的邮箱记录: %s", row)
             return [{"address": row[0], "ads_browser_id": row[1]} for row in rows]
         except (Exception, Error) as error:
             logger.error("查询 outlook_email_list 表时出错: %s", error)
-            raise
+            return []
 
     def query_table(self, table_name):
         """查询指定表的所有数据"""
@@ -177,40 +155,12 @@ class PostgresDBManager:
             query = f'SELECT * FROM {table_name};'
             self.cursor.execute(query)
             rows = self.cursor.fetchall()
-            logger.info("%s 表查询到 %d 条记录", table_name, len(rows))
+            logger.info("从 %s 表查询到 %d 条记录", table_name, len(rows))
             for row in rows:
                 logger.debug("%s 表记录: %s", table_name, row)
             return rows
         except (Exception, Error) as error:
             logger.error("查询 %s 表时出错: %s", table_name, error)
-            raise
-
-    def alter_email_content_table(self, column_name, column_type, constraint=None):
-        """修改 outlook_email_content 表，添加新列"""
-        try:
-            alter_query = f'''
-                ALTER TABLE outlook_email_content
-                ADD COLUMN {column_name} {column_type} {constraint if constraint else ''};
-            '''
-            self.cursor.execute(alter_query)
-            self.connection.commit()
-            logger.info("outlook_email_content 表添加列 %s 成功", column_name)
-        except (Exception, Error) as error:
-            logger.error("修改 outlook_email_content 表时出错: %s", error)
-            raise
-
-    def alter_email_list_table(self, column_name, column_type, constraint=None):
-        """修改 outlook_email_list 表，添加新列"""
-        try:
-            alter_query = f'''
-                ALTER TABLE outlook_email_list
-                ADD COLUMN {column_name} {column_type} {constraint if constraint else ''};
-            '''
-            self.cursor.execute(alter_query)
-            self.connection.commit()
-            logger.info("outlook_email_list 表添加列 %s 成功", column_name)
-        except (Exception, Error) as error:
-            logger.error("修改 outlook_email_list 表时出错: %s", error)
             raise
 
     def update_is_need_check(self, email_address):
@@ -228,6 +178,8 @@ class PostgresDBManager:
             logger.error("更新邮箱 %s 的 is_need_check 时出错: %s", email_address, error)
             self.connection.rollback()
             raise
+
+
 
 class OutlookEmailFetcher:
     def __init__(self, adspower_api_url="http://local.adspower.net:50325"):
@@ -364,6 +316,7 @@ class OutlookEmailFetcher:
             logger.debug("发送关闭浏览器请求: %s, %s", stop_url, {"profile_id": ads_browser_id})
             requests.post(stop_url, json={"profile_id": ads_browser_id})
             return emails
+
 
 def process_email_task(email, downloader, connection_pool):
     """处理单个邮箱账户，读取邮件并存储到数据库"""
