@@ -315,6 +315,10 @@ class OutlookEmailFetcher:
                             logger.error("无法提取第 %d 封邮件标题", idx + 1)
                             email_title = "No title found"
                         
+                        wait_time = random.uniform(4, 8)
+                        logger.info(f"随机等待 {wait_time:.2f} 秒")
+                        time.sleep(wait_time)
+                        
                         # 获取邮件内容
                         try:
                             content_elem = WebDriverWait(driver, 8).until(
