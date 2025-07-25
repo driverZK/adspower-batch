@@ -16,11 +16,11 @@ import logging
 
 # 配置日志
 logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(module)s - %(message)s',
     handlers=[
-        logging.StreamHandler(),  # 输出到控制台
-        logging.FileHandler('email_manager.log', mode='a')  # 输出到文件
+        logging.FileHandler('outlook_login.log', encoding='utf-8'),
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
