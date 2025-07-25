@@ -347,7 +347,7 @@ def main_loop(polling_interval=60, max_workers=5):
         database=os.getenv("DB_NAME")
     )
     db_manager = PostgresDBManager(connection_pool=connection_pool)
-    downloader = OutlookEmailDownloader()
+    downloader = OutlookEmailFetcher()
 
     try:
         while True:
