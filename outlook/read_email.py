@@ -347,7 +347,7 @@ class OutlookEmailFetcher:
             except TimeoutException as e:
                 logger.error("无法加载 %s 的邮件列表: %s", email_address, e)
 
-            wait_time = random.uniform(3, 7)
+            wait_time = random.uniform(4, 10)
             logger.info(f"随机等待 {wait_time:.2f} 秒")
             time.sleep(wait_time)
 
