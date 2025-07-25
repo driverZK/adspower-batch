@@ -268,6 +268,7 @@ class OutlookEmailFetcher:
                     EC.presence_of_element_located((By.CSS_SELECTOR, "[role='listbox'] [role='option']"))
                 )
                 logger.info("邮件列表加载成功")
+
                 
                 # 获取邮件列表，过滤广告邮件
                 email_elements = driver.find_elements(By.CSS_SELECTOR, "[role='option']")
@@ -292,24 +293,28 @@ class OutlookEmailFetcher:
                         if sender and "microsoft outlook" in sender[0].text.lower():
                             logger.debug("跳过广告邮件，发件人: %s", sender[0].text)
                             is_ad = True
+                        
                         if not is_ad:
                             non_ad_emails.append(elem)
                     except (NoSuchElementException, StaleElementReferenceException) as e:
                         logger.debug("检查邮件广告标识时出错: %s", e)
                         continue
-
-                logger.info("过滤后找到 %d 封非广告邮件，读取最新 1封", len(non_ad_emails))
                 
-                # 读取最新1封非广告邮件
-                for idx, email_elem in enumerate(non_ad_emails[:1]):
+                logger.info("过滤后找到 %d 封非广告邮件，读取前 3 封", len(non_ad_emails))
+                
+                # 读取前 3 封非广告邮件
+                for idx, email_elem in enumerate(non_ad_emails[:3]):
                     try:
-                        logger.info("点击第 %d 封非广告邮件", idx + 1)
+                        logger.debug("点击第 %d 封非广告邮件", idx + 1)
+                        email_elem.click()
+                        time.sleep(1)  # 等待邮件内容加载
+                        
                         # 获取邮件标题
                         try:
-                            title = email_elem.find_element(By.CSS_SELECTOR, "span[title]")
-                            email_title = title.text
-                            logger.info("提取邮件标题: %s", email_title)
-                            title.click()
+                            title_elem = WebDriverWait(driver, 5).until(
+                                EC.presence_of_element_located((By.CSS_SELECTOR, ".k0JCU, [role='heading']"))
+                            )
+                            email_title = title_elem.text.strip()
                             logger.debug("提取邮件标题: %s", email_title)
                         except TimeoutException:
                             logger.error("无法提取第 %d 封邮件标题", idx + 1)
@@ -333,6 +338,16 @@ class OutlookEmailFetcher:
                         })
                         logger.info("成功读取第 %d 封非广告邮件", idx + 1)
                         
+                        # 返回邮件列表
+                        try:
+                            back_button = driver.find_element(By.CSS_SELECTOR, "button[aria-label*='Back'], button[title*='Back']")
+                            back_button.click()
+                            time.sleep(1)
+                        except NoSuchElementException:
+                            logger.error("无法找到返回按钮，第 %d 封邮件", idx + 1)
+                            driver.get("https://outlook.office.com/mail/inbox")
+                            time.sleep(1)
+                            
                     except (NoSuchElementException, TimeoutException, StaleElementReferenceException) as e:
                         logger.error("无法读取第 %d 封非广告邮件: %s", idx + 1, e)
                         continue
