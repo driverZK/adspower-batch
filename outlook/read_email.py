@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 import requests
 import time
+import random
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
