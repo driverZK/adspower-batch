@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
+import os
+import time
+import random
+import logging
+import requests
+from dotenv import load_dotenv
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import psycopg2
 from psycopg2 import Error
 from psycopg2.extras import execute_values
 from psycopg2.pool import ThreadedConnectionPool
-from dotenv import load_dotenv
-import os
-import requests
-import time
-import random
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException 
-import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 # 配置日志
@@ -34,8 +34,13 @@ load_dotenv()
 
 
 class PostgresDBManager:
+    """
+    pg数据库管理模块
+    """
     def __init__(self, connection_pool=None):
-        """初始化数据库连接或使用连接池"""
+        """
+        初始化数据库连接或使用连接池
+        """
         self.connection = None
         self.cursor = None
         self.connection_pool = connection_pool
@@ -131,26 +136,35 @@ class PostgresDBManager:
             self.connection.rollback()
             raise
 
-    def query_valid_emails(self):
-        """查询 is_valid=TRUE, is_login=TRUE, is_need_check>0 的记录"""
+    def query_need_check_emails(self):
+        """
+        查询 is_valid=TRUE, is_login=TRUE, is_need_check>0 的邮箱记录
+        """
         try:
             query = '''
-                SELECT address, ads_browser_id
-                FROM outlook_email_list
-                WHERE is_valid = TRUE AND is_login = TRUE AND is_need_check > 0;
+                SELECT
+                    address, ads_browser_id
+                FROM
+                    outlook_email_list
+                WHERE
+                    is_valid = TRUE
+                    AND is_login = TRUE
+                    AND is_need_check > 0;
             '''
             self.cursor.execute(query)
             rows = self.cursor.fetchall()
             logger.info("查询到 %d 条符合条件的邮箱记录", len(rows))
             for row in rows:
-                logger.debug("符合条件的邮箱记录: %s", row)
+                logger.info("符合条件的邮箱记录: %s", row)
             return [{"address": row[0], "ads_browser_id": row[1]} for row in rows]
         except (Exception, Error) as error:
             logger.error("查询 outlook_email_list 表时出错: %s", error)
             return []
 
     def query_table(self, table_name):
-        """查询指定表的所有数据"""
+        """
+        查询指定表的所有数据
+        """
         try:
             query = f'SELECT * FROM {table_name};'
             self.cursor.execute(query)
@@ -164,12 +178,17 @@ class PostgresDBManager:
             raise
 
     def update_is_need_check(self, email_address):
-        """将指定邮箱的 is_need_check 置为 0"""
+        """
+        将指定邮箱的 is_need_check 置为 0
+        """
         try:
             update_query = '''
-                UPDATE outlook_email_list
-                SET is_need_check = 0
-                WHERE address = %s;
+                UPDATE
+                    outlook_email_list
+                SET
+                    is_need_check = 0
+                WHERE
+                    address = %s;
             '''
             self.cursor.execute(update_query, (email_address,))
             self.connection.commit()
@@ -178,12 +197,17 @@ class PostgresDBManager:
             logger.error("更新邮箱 %s 的 is_need_check 时出错: %s", email_address, error)
             self.connection.rollback()
             raise
-
+        return True
 
 
 class OutlookEmailFetcher:
+    """
+    outlook邮件读取模块
+    """
     def __init__(self, adspower_api_url="http://local.adspower.net:50325"):
-        """初始化 AdsPower API 地址"""
+        """
+        初始化 AdsPower API 地址
+        """
         self.adspower_api_url = adspower_api_url
         logger.info("初始化 OutlookEmailFetcher, AdsPower API 地址: %s", adspower_api_url)
 
@@ -319,7 +343,9 @@ class OutlookEmailFetcher:
 
 
 def process_email_task(email, downloader, connection_pool):
-    """处理单个邮箱账户，读取邮件并存储到数据库"""
+    """
+    处理单个邮箱账户, 读取邮件并存储到数据库
+    """
     db_manager = PostgresDBManager(connection_pool=connection_pool)
     try:
         logger.info("处理邮箱: %s, AdsPower ID: %s", email['address'], email['ads_browser_id'])
@@ -336,9 +362,12 @@ def process_email_task(email, downloader, connection_pool):
     finally:
         db_manager.close_connection()
 
+
 def main_loop(polling_interval=60, max_workers=5):
-    """主循环，持续监控并并发处理邮件"""
-    logger.info("启动主循环，轮询间隔 %d 秒，最大并发数 %d", polling_interval, max_workers)
+    """
+    主循环，持续监控并并发处理邮件
+    """
+    logger.info("启动主循环, 轮询间隔 %d 秒, 最大并发数 %d", polling_interval, max_workers)
     connection_pool = ThreadedConnectionPool(
         minconn=1,
         maxconn=max_workers,
@@ -348,6 +377,7 @@ def main_loop(polling_interval=60, max_workers=5):
         port=os.getenv("DB_PORT"),
         database=os.getenv("DB_NAME")
     )
+
     db_manager = PostgresDBManager(connection_pool=connection_pool)
     downloader = OutlookEmailFetcher()
 
@@ -355,10 +385,10 @@ def main_loop(polling_interval=60, max_workers=5):
         while True:
             try:
                 # 查询符合条件的邮箱
-                logger.info("查询符合条件的邮箱记录")
-                valid_emails = db_manager.query_valid_emails()
+                logger.info("开始查询需要读取邮件的邮箱")
+                valid_emails = db_manager.query_need_check_emails()
                 if not valid_emails:
-                    logger.info("未找到符合条件的邮箱，等待下次轮询")
+                    logger.info("未找到符合条件的邮箱, 等待下次轮询")
                     time.sleep(polling_interval)
                     continue
 
@@ -391,10 +421,10 @@ def main_loop(polling_interval=60, max_workers=5):
         connection_pool.closeall()
         logger.info("连接池已关闭，程序终止")
 
-# 示例用法
-if __name__ == "__main__":
-    logger.info("程序启动")
-    main_loop(polling_interval=60, max_workers=5)
+
+def main():
+    """
+    执行调试
     """
     logger.info("程序启动")
     try:
@@ -403,13 +433,13 @@ if __name__ == "__main__":
         email_fetcher = OutlookEmailFetcher()
 
         # 创建表
-        logger.info("开始创建数据库表")
+        # logger.info("开始创建数据库表")
         # db_manager.create_email_content_table()
         # db_manager.create_email_list_table()
 
         # 处理符合条件的邮箱
         logger.info("查询符合条件的邮箱列表")
-        valid_emails = db_manager.query_valid_emails()
+        valid_emails = db_manager.query_need_check_emails()
         for email in valid_emails:
             logger.info("处理邮箱: %s, AdsPower ID: %s", email['address'], email['ads_browser_id'])
             emails = email_fetcher.fetch_outlook_emails(email['address'], email['ads_browser_id'])
@@ -419,9 +449,8 @@ if __name__ == "__main__":
                 logger.info("更新邮箱 %s 的 is_need_check", email['address'])
                 db_manager.update_is_need_check(email['address'])
         # 查询结果
-        logger.info("查询 outlook_email_content 表结果")
-        db_manager.query_table("outlook_email_content")
-
+        # logger.info("查询 outlook_email_content 表结果")
+        # db_manager.query_table("outlook_email_content")
     except Exception as e:
         logger.error("程序执行出错: %s", e)
     finally:
@@ -429,4 +458,9 @@ if __name__ == "__main__":
         logger.info("关闭数据库连接")
         db_manager.close_connection()
         logger.info("程序结束")
-    """
+ 
+
+# 示例用法
+if __name__ == "__main__":
+    # main()
+    main_loop(polling_interval=60, max_workers=5)
