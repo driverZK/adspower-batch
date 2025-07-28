@@ -424,7 +424,7 @@ def main_loop(polling_interval=60, max_workers=5):
         while True:
             try:
                 # 查询符合条件的邮箱
-                logger.info(50*"=" + "开始查询需要读取邮件的邮箱账号" + 50*"=")
+                logger.info(20*"=" + "开始查询需要读取邮件的邮箱账号" + 20*"=")
                 valid_emails = db_manager.query_need_check_emails()
                 if not valid_emails:
                     logger.info("未找到符合条件的邮箱, 等待下次轮询")
