@@ -21,7 +21,7 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException,
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(module)s - %(message)s',
+    format='%(asctime)s-%(levelname)s - %(module)s: %(message)s',
     handlers=[
         logging.FileHandler('outlook_login.log', encoding='utf-8'),
         logging.StreamHandler()
@@ -211,30 +211,73 @@ class OutlookEmailFetcher:
         self.adspower_api_url = adspower_api_url
         logger.info("初始化 OutlookEmailFetcher, AdsPower API 地址: %s", adspower_api_url)
 
-    def fetch_outlook_emails(self, email_address, ads_browser_id):
-        """使用 AdsPower 和 Selenium 读取 Outlook 前 3 封非广告邮件"""
+    def start_adspower_profile(self, ads_browser_id):
+        """
+        启动 ADS Power 指纹浏览器实例
+        """
+        logger.info("正在启动 ADS Power 指纹浏览器实例")
         start_url = f"{self.adspower_api_url}/api/v2/browser-profile/start"
+        start_payload = {
+            "profile_id": ads_browser_id,
+            "proxy_detection": "0"
+        }
+        try:
+            logger.debug("发送启动浏览器请求: %s, 参数: %s", start_url, start_payload)
+            response = requests.post(start_url, json=start_payload)
+            if response.status_code == 200:
+                data = response.json()
+                if data["code"] == 0:
+                    logger.info("成功启动 AdsPower 浏览器 %s", ads_browser_id)
+                    chrome_options = Options()
+                    chrome_options.add_experimental_option("debuggerAddress", data["data"]["ws"]["selenium"])
+                    self.driver = webdriver.Chrome(options=chrome_options)
+                    self.driver.maximize_window()
+                else:
+                    logger.error("无法启动 AdsPower 浏览器 %s: %s", ads_browser_id, data["msg"])
+                    raise Exception(f"启动浏览器失败: {data['msg']}")
+            else:
+                logger.error(f"API 请求失败: {response.text}")
+                raise Exception(f"API 请求失败: {response.text}")
+        except Exception as e:
+            logger.error(f"启动浏览器时发生错误: {str(e)}")
+            raise
+
+    def stop_adspower_profile(self, ads_browser_id):
+        """
+        关闭 ADS Power 指纹浏览器实例
+        """
+        logger.info("正在关闭 ADS Power 指纹浏览器实例")
         stop_url = f"{self.adspower_api_url}/api/v2/browser-profile/stop"
+        stop_payload = {
+            "profile_id": ads_browser_id
+        }
+        try:
+            logger.info("发送关闭ads浏览器请求: %s, %s", stop_url, stop_payload)
+            response = requests.post(stop_url, json=stop_payload)
+            if response.status_code == 200:
+                data = response.json()
+                if data["code"] == 0:
+                    logger.info("AdsPower 浏览器 %s 已关闭", ads_browser_id)
+                else:
+                    logger.error(f"关闭浏览器 {ads_browser_id} 失败: {data['msg']}")
+            else:
+                logger.error(f"API 请求失败: {response.text}")
+        except Exception as e:
+            logger.error(f"关闭浏览器时发生错误: {str(e)}")
+
+    def fetch_outlook_emails(self, email_address, ads_browser_id):
+        """
+        使用 AdsPower 和 Selenium 读取 Outlook 前 3 封非广告邮件
+        """
         emails = []
 
         try:
             # 启动 AdsPower 指纹浏览器
-            start_payload = {"profile_id": ads_browser_id, "proxy_detection": "0"}
-            logger.debug("发送启动浏览器请求: %s, 参数: %s", start_url, start_payload)
-            resp = requests.post(start_url, json=start_payload).json()
-            if resp["code"] != 0:
-                logger.error("无法启动 AdsPower 浏览器 %s: %s", ads_browser_id, resp["msg"])
-                return emails
-            
-            logger.info("成功启动 AdsPower 浏览器 %s", ads_browser_id)
-            chrome_options = Options()
-            chrome_options.add_experimental_option("debuggerAddress", resp["data"]["ws"]["selenium"])
-            driver = webdriver.Chrome(options=chrome_options)
-            driver.maximize_window()
+            self.start_adspower_profile(ads_browser_id)
             
             # 访问 Outlook 收件箱
-            logger.debug("访问 Outlook 收件箱: %s", email_address)
-            driver.get("https://outlook.live.com")
+            logger.info("访问 Outlook 收件箱: %s", email_address)
+            self.driver.get("https://outlook.live.com")
 
             wait_time = random.uniform(4, 8)
             logger.info(f"随机等待 {wait_time:.2f} 秒")
@@ -243,14 +286,14 @@ class OutlookEmailFetcher:
             try:
                 # 等待邮件列表加载
                 logger.debug("等待邮件列表加载")
-                WebDriverWait(driver, 10).until(
+                WebDriverWait(self.driver, 10).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, "[role='listbox'] [role='option']"))
                 )
                 logger.info("邮件列表加载成功")
                 
                 # 获取邮件列表，过滤广告邮件
-                email_elements = driver.find_elements(By.CSS_SELECTOR, "[role='option']")
-                logger.info("找到 %d 封邮件", len(email_elements))
+                email_elements = self.driver.find_elements(By.CSS_SELECTOR, "[role='option']")
+                logger.info("邮箱 %s 找到 %d 封邮件", email_address, len(email_elements))
                 non_ad_emails = []
                 for elem in email_elements:
                     try:
@@ -279,7 +322,7 @@ class OutlookEmailFetcher:
 
                 logger.info("过滤后找到 %d 封非广告邮件，读取最新 1封", len(non_ad_emails))
                 
-                # 读取最新1封非广告邮件
+                # 读取最新一封非广告邮件内容
                 for idx, email_elem in enumerate(non_ad_emails[:1]):
                     try:
                         logger.info("点击第 %d 封非广告邮件", idx + 1)
@@ -289,7 +332,6 @@ class OutlookEmailFetcher:
                             email_title = title.text
                             logger.info("提取邮件标题: %s", email_title)
                             title.click()
-                            logger.debug("提取邮件标题: %s", email_title)
                         except TimeoutException:
                             logger.error("无法提取第 %d 封邮件标题", idx + 1)
                             email_title = "No title found"
@@ -300,11 +342,11 @@ class OutlookEmailFetcher:
                         
                         # 获取邮件内容
                         try:
-                            content_elem = WebDriverWait(driver, 8).until(
+                            content_elem = WebDriverWait(self.driver, 8).until(
                                 EC.presence_of_element_located((By.CSS_SELECTOR, "div[role='document']"))
                             )
                             email_content = content_elem.text.strip()
-                            logger.debug("提取邮件内容: %s", email_content[:150] + "..." if len(email_content) > 50 else email_content)
+                            logger.info("提取邮件内容: %s", email_content[:50] + "..." if len(email_content) > 50 else email_content)
                         except TimeoutException:
                             logger.error("无法提取第 %d 封邮件内容", idx + 1)
                             email_content = "No content found"
@@ -328,17 +370,14 @@ class OutlookEmailFetcher:
             time.sleep(wait_time)
 
             # 清理
-            driver.quit()
-            logger.debug("关闭 Selenium 浏览器")
-            logger.debug("发送关闭浏览器请求: %s, %s", stop_url, {"profile_id": ads_browser_id})
-            requests.post(stop_url, json={"profile_id": ads_browser_id})
-            logger.info("AdsPower 浏览器 %s 已关闭", ads_browser_id)
+            self.driver.quit()
+            # 关闭 AdsPower 指纹浏览器
+            self.stop_adspower_profile(ads_browser_id)
             return emails
         
         except Exception as e:
             logger.error("处理 AdsPower 浏览器 %s 时出错: %s", ads_browser_id, e)
-            logger.debug("发送关闭浏览器请求: %s, %s", stop_url, {"profile_id": ads_browser_id})
-            requests.post(stop_url, json={"profile_id": ads_browser_id})
+            self.stop_adspower_profile(ads_browser_id)
             return emails
 
 
@@ -385,7 +424,7 @@ def main_loop(polling_interval=60, max_workers=5):
         while True:
             try:
                 # 查询符合条件的邮箱
-                logger.info("开始查询需要读取邮件的邮箱")
+                logger.info(50*"=" + "开始查询需要读取邮件的邮箱账号" + 50*"=")
                 valid_emails = db_manager.query_need_check_emails()
                 if not valid_emails:
                     logger.info("未找到符合条件的邮箱, 等待下次轮询")

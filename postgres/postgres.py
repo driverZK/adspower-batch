@@ -191,6 +191,7 @@ class PostgresDBManager:
         except (Exception, Error) as error:
             print(f"修改 outlook_email_list 表时出错:", error)
 
+
 def get_test_data():
     return [
         {
@@ -495,6 +496,27 @@ def get_test_data():
         }
     ]
 
+
+def get_one_test_data():
+    return [
+        {
+            "address": "bigcao33@outlook.com",
+            "password": "k11wytj1",
+            "source": "manual",
+            "ads_browser_id": "k11wytj1",
+            "ads_browser_num": "num_8",
+            "proxy_ip": "192.168.1.1",
+            "proxy_country": "US",
+            "is_valid": True,
+            "is_login": True,
+            "is_need_check": 0,
+            "need_check_time": None,
+            "stop_time": None,
+            "remark": "account"
+        },
+ 
+    ]
+
 # 示例用法
 if __name__ == "__main__":
     # 初始化数据库管理器
@@ -516,7 +538,8 @@ if __name__ == "__main__":
     # db_manager.insert_email_list()
 
     # 插入 20 条测试数据到 outlook_email_list
-    test_data = get_test_data()
+    # test_data = get_test_data()
+    test_data = get_one_test_data()
     db_manager.insert_email_list_batch(test_data)
 
     # 关闭连接
